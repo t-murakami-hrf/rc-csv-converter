@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RC応募者CSV変換ツール</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232735;
+    --border: #2e3346;
+    --text: #e4e6ef;
+    --text-muted: #8b90a5;
+    --accent: #4f8cff;
+    --accent-dim: rgba(79,140,255,0.12);
+    --green: #3dd68c;
+    --green-dim: rgba(61,214,140,0.12);
+    --orange: #ff9f43;
+    --orange-dim: rgba(255,159,67,0.12);
+    --red: #ff6b6b;
+    --red-dim: rgba(255,107,107,0.12);
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ====== Auth Gate ====== */
+  #authGate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .auth-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 40px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+  }
+  .auth-box h2 { margin-bottom: 8px; font-size: 1.2rem; }
+  .auth-box p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .auth-box input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+    text-align: center;
+    letter-spacing: 2px;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .auth-box input:focus { border-color: var(--accent); }
+  .auth-error {
+    color: var(--red);
+    font-size: 0.82rem;
+    margin-bottom: 12px;
+    display: none;
+  }
+
+  /* ====== Main App ====== */
+  #mainApp { display: none; padding: 24px; }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .top-bar h1 { font-size: 1.4rem; font-weight: 700; }
+  .version-tag {
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .step-num {
+    background: var(--accent-dim);
+    color: var(--accent);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+  }
+  .step-title { font-weight: 700; font-size: 1rem; }
+
+  .row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 180px; }
+  .field label {
+    display: block; font-size: 0.78rem; color: var(--text-muted);
+    margin-bottom: 4px; font-weight: 500;
+  }
+  .field input, .field select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px; color: var(--text);
+    font-family: inherit; font-size: 0.9rem; outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--text-muted); }
+
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 40px 20px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s; position: relative;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent); background: var(--accent-dim);
+  }
+  .dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .dropzone-icon { font-size: 2rem; margin-bottom: 8px; }
+  .dropzone-text { color: var(--text-muted); font-size: 0.85rem; }
+  .dropzone-text strong { color: var(--accent); }
+
+  .mapping-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .mapping-table th {
+    text-align: left; padding: 10px 12px; background: var(--surface2);
+    color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border);
+  }
+  .mapping-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .mapping-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .mapping-table select {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 6px 8px; color: var(--text); font-family: inherit; font-size: 0.82rem; width: 100%;
+  }
+
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 500;
+  }
+  .tag-required { background: var(--red-dim); color: var(--red); }
+  .tag-optional { background: var(--green-dim); color: var(--green); }
+  .tag-auto { background: var(--accent-dim); color: var(--accent); }
+  .tag-mapped { background: var(--green-dim); color: var(--green); }
+  .tag-unmapped { background: var(--orange-dim); color: var(--orange); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px;
+    border-radius: 8px; font-family: inherit; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+
+  .preview-scroll {
+    overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; max-height: 320px;
+  }
+  .preview-table {
+    width: max-content; min-width: 100%; border-collapse: collapse; font-size: 0.78rem;
+  }
+  .preview-table th {
+    position: sticky; top: 0; background: var(--surface2); padding: 8px 12px;
+    text-align: left; font-weight: 500; color: var(--text-muted);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .preview-table td {
+    padding: 6px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .preview-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .result-box {
+    background: var(--green-dim); border: 1px solid rgba(61,214,140,0.3);
+    border-radius: var(--radius); padding: 20px; margin-top: 16px;
+  }
+  .result-box h3 { color: var(--green); margin-bottom: 8px; }
+  .result-stats { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+  .result-stat { font-size: 0.85rem; }
+  .result-stat strong { color: var(--text); }
+
+  .error-box {
+    background: var(--red-dim); border: 1px solid rgba(255,107,107,0.3);
+    border-radius: var(--radius); padding: 16px; margin-top: 12px; font-size: 0.85rem;
+  }
+  .info-box {
+    background: var(--accent-dim); border: 1px solid rgba(79,140,255,0.2);
+    border-radius: 6px; padding: 14px 16px; font-size: 0.82rem;
+    color: var(--text-muted); margin-bottom: 16px; line-height: 1.6;
+  }
+  .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+  .hidden { display: none; }
+
+  /* Preset selector */
+  .preset-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .preset-btn {
+    padding: 8px 16px; border-radius: 20px; font-family: inherit;
+    font-size: 0.82rem; font-weight: 500; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+  /* Footer */
+  .footer {
+    text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.75rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== Auth Gate ====== -->
+<div id="authGate">
+  <div class="auth-box">
+    <div style="font-size:2.5rem; margin-bottom:16px;">🔐</div>
+    <h2>RC CSV変換ツール</h2>
+    <p>アクセスフレーズを入力してください</p>
+    <div class="auth-error" id="authError">フレーズが正しくありません</div>
+    <input type="password" id="authInput" placeholder="アクセスフレーズ" autofocus>
+    <button class="btn btn-primary" style="width:100%;" id="authBtn">ログイン</button>
+  </div>
+</div>
+
+<!-- ====== Main App ====== -->
+<div id="mainApp">
+  <div class="container">
+    <div class="top-bar">
+      <h1>📋 RC応募者CSV変換ツール</h1>
+      <span class="version-tag">v1.0.0</span>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="step" id="step1">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div class="step-title">RC基本情報 ＆ 媒体選択</div>
+      </div>
+      <div class="info-box">
+        顧客ID・サイトIDは全行に共通で入ります。媒体プリセットを選ぶとカラムマッピングが自動設定されます。
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>【必須】顧客ID</label>
+          <input type="text" id="customerId" placeholder="例: cm98">
+        </div>
+        <div class="field">
+          <label>【必須】サイトID</label>
+          <input type="text" id="siteId" placeholder="例: st245">
+        </div>
+        <div class="field">
+          <label>求人ID（任意・後でマッピング可）</label>
+          <input type="text" id="defaultJobId" placeholder="空欄可">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>デフォルトステータス</label>
+          <select id="defaultStatus">
+            <option value="初回対応">初回対応</option>
+            <option value="未対応">未対応</option>
+            <option value="対応中">対応中</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>媒体プリセット</label>
+          <select id="presetSelect">
+            <option value="auto">自動検出</option>
+            <option value="bizreach">ビズリーチ</option>
+            <option value="mynavi_tenshoku">マイナビ転職</option>
+            <option value="mynavi_baito">マイナビバイト</option>
+            <option value="manual">手動マッピング</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step" id="step2">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-title">媒体CSVをアップロード</div>
+      </div>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".csv,.tsv,.txt">
+        <div class="dropzone-icon">📁</div>
+        <div class="dropzone-text">
+          クリックまたはドラッグ&ドロップで <strong>CSVファイル</strong> を選択<br>
+          Shift_JIS / UTF-8 自動判定
+        </div>
+      </div>
+      <div id="fileInfo" class="hidden" style="margin-top:12px;font-size:0.85rem;color:var(--text-muted);"></div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step hidden" id="step3">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-title">カラムマッピング確認</div>
+      </div>
+      <div class="info-box" id="autoMapInfo"></div>
+      <table class="mapping-table" id="mappingTable">
+        <thead><tr>
+          <th style="width:35%">RCカラム</th>
+          <th style="width:10%">種別</th>
+          <th style="width:10%">状態</th>
+          <th style="width:45%">媒体CSVカラム</th>
+        </tr></thead>
+        <tbody id="mappingBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step hidden" id="step4">
+      <div class="step-header">
+        <div class="step-num">4</div>
+        <div class="step-title">プレビュー＆ダウンロード</div>
+      </div>
+      <div class="actions" style="margin-top:0;margin-bottom:16px;">
+        <button class="btn btn-primary" id="btnConvert">🔄 変換してプレビュー</button>
+        <button class="btn btn-secondary hidden" id="btnReset">↩ リセット</button>
+      </div>
+      <div id="previewArea" class="hidden">
+        <div class="preview-scroll">
+          <table class="preview-table" id="previewTable"></table>
+        </div>
+      </div>
+      <div id="resultArea" class="hidden"></div>
+      <div class="actions">
+        <button class="btn btn-primary hidden" id="btnDownloadZip">📦 ZIPダウンロード（oubosya.csv入り）</button>
+        <button class="btn btn-secondary hidden" id="btnDownloadCsv">📄 CSVのみダウンロード</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      RC応募者CSV変換ツール v1.0.0 — ブラウザ内完結（データはサーバーに送信されません）
+    </div>
+  </div>
+</div>
+
+<!-- JSZip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+// ============================================================
+// CONFIG — 変更する場合はここだけ触る
+// ============================================================
+const ACCESS_PHRASE = 'rcimport2026';
+const APP_VERSION = 'v1.0.0';
+
+// ============================================================
+// MEDIA PRESETS — 媒体追加時はここにプリセットを追加
+// キー名は各媒体CSVのヘッダー行に含まれる列名
+// ============================================================
+const MEDIA_PRESETS = {
+  bizreach: {
+    name: 'ビズリーチ',
+    // ビズリーチ企業管理画面からの応募者CSVの一般的なカラム名
+    hints: {
+      last_name:   ['姓', '氏名', '候補者名'],
+      first_name:  ['名'],
+      phone:       ['電話番号', 'TEL', '携帯電話'],
+      email:       ['メールアドレス', 'メール', 'E-mail'],
+      applied_at:  ['応募日', '応募日時', 'エントリー日', '登録日時'],
+      birthday:    ['生年月日', '誕生日'],
+      gender:      ['性別'],
+      address:     ['住所', '現住所', '居住地'],
+      education:   ['最終学歴', '学歴', '学校名'],
+      kana_last:   ['姓カナ', 'セイ', 'フリガナ（姓）', 'フリガナ'],
+      kana_first:  ['名カナ', 'メイ', 'フリガナ（名）'],
+      job_id:      ['求人ID', '求人番号', 'ポジション名', '求人名'],
+      memo:        ['備考', 'メモ'],
+      qualifications: ['資格', '保有資格'],
+    },
+    // 氏名が1カラムの場合の自動分割
+    fullNameColumns: ['氏名', '候補者名', '名前'],
+  },
+  mynavi_tenshoku: {
+    name: 'マイナビ転職',
+    hints: {
+      last_name:   ['氏名（姓）', '姓', '氏名'],
+      first_name:  ['氏名（名）', '名'],
+      phone:       ['電話番号', 'TEL', '連絡先電話番号'],
+      email:       ['メールアドレス', 'E-mail', 'メール'],
+      applied_at:  ['応募日', '応募日時', '受付日時'],
+      birthday:    ['生年月日'],
+      gender:      ['性別'],
+      address:     ['住所', '現住所', '都道府県'],
+      education:   ['最終学歴'],
+      kana_last:   ['ふりがな（姓）', 'フリガナ（姓）', 'カナ（姓）'],
+      kana_first:  ['ふりがな（名）', 'フリガナ（名）', 'カナ（名）'],
+      job_id:      ['求人番号', '掲載番号', '募集ID'],
+      memo:        ['備考', '自己PR'],
+      qualifications: ['資格', '免許・資格'],
+    },
+    fullNameColumns: ['氏名', '応募者名'],
+  },
+  mynavi_baito: {
+    name: 'マイナビバイト',
+    hints: {
+      last_name:   ['氏名', '姓', '名前'],
+      first_name:  ['名'],
+      phone:       ['電話番号', 'TEL'],
+      email:       ['メールアドレス', 'メール'],
+      applied_at:  ['応募日時', '応募日', '受付日'],
+      birthday:    ['生年月日'],
+      gender:      ['性別'],
+      address:     ['住所'],
+      education:   ['学歴'],
+      kana_last:   ['フリガナ', 'カナ'],
+      kana_first:  [],
+      job_id:      ['募集ID', '案件名'],
+      memo:        ['備考'],
+      qualifications: ['資格'],
+    },
+    fullNameColumns: ['氏名', '名前'],
+  },
+};
+
+// ============================================================
+// RC Target Columns
+// ============================================================
+const RC_COLUMNS = [
+  { key: 'applicant_id',  label: '応募者ID',                      required: false, type: 'auto',  desc: '自動採番' },
+  { key: 'customer_id',   label: '【必須】顧客ID',                required: true,  type: 'fixed', desc: 'Step1入力' },
+  { key: 'site_id',       label: '【必須】サイトID',              required: true,  type: 'fixed', desc: 'Step1入力' },
+  { key: 'job_id',        label: '求人ID',                        required: false, type: 'map' },
+  { key: 'status',        label: '【必須】ステータス',            required: true,  type: 'fixed', desc: 'Step1選択' },
+  { key: 'memo',          label: 'メモ',                          required: false, type: 'map' },
+  { key: 'applied_at',    label: '応募日時',                      required: false, type: 'map' },
+  { key: 'last_name',     label: '【必須】氏',                    required: true,  type: 'map' },
+  { key: 'first_name',    label: '【必須】名',                    required: true,  type: 'map' },
+  { key: 'birthday',      label: '【必須】生年月日',              required: true,  type: 'map' },
+  { key: 'phone',         label: '【必須】電話番号',              required: true,  type: 'map' },
+  { key: 'email',         label: '【必須】メールアドレス',        required: true,  type: 'map' },
+  { key: 'qualifications',label: '保有資格',                      required: false, type: 'map' },
+  { key: 'opt_memo',      label: '任意応募項目 - 備考',           required: false, type: 'map' },
+  { key: 'kana_last',     label: '任意応募項目 - フリガナ - 氏',  required: false, type: 'map' },
+  { key: 'kana_first',    label: '任意応募項目 - フリガナ - 名',  required: false, type: 'map' },
+  { key: 'gender',        label: '任意応募項目 - 性別（男女）',    required: false, type: 'map' },
+  { key: 'address',       label: '任意応募項目 - 住所',           required: false, type: 'map' },
+  { key: 'education',     label: '任意応募項目 - 学歴',           required: false, type: 'map' },
+  { key: 'source_note',   label: '連携データ - 備考',             required: false, type: 'auto',  desc: '媒体名を自動記録' },
+];
+
+// Generic fallback keywords (used when preset is "auto" or "manual")
+const GENERIC_HINTS = {
+  last_name:      ['氏', '姓', 'last_name', 'lastname', '苗字', '氏名'],
+  first_name:     ['名', 'first_name', 'firstname'],
+  birthday:       ['生年月日', '誕生日', 'birthday', 'dob'],
+  phone:          ['電話', 'tel', 'phone', '携帯'],
+  email:          ['メール', 'email', 'mail', 'e-mail'],
+  applied_at:     ['応募日', '応募日時', '受付日', '登録日'],
+  job_id:         ['求人id', '求人番号', 'job_id'],
+  kana_last:      ['フリガナ', 'カナ', 'セイ'],
+  kana_first:     ['メイ'],
+  gender:         ['性別', 'gender'],
+  address:        ['住所', 'address', '所在地'],
+  education:      ['学歴', '最終学歴', 'education'],
+  qualifications: ['資格', '保有資格', '免許'],
+  memo:           ['備考', 'メモ', 'memo'],
+  opt_memo:       [],
+};
+
+// ============================================================
+// State
+// ============================================================
+let csvHeaders = [];
+let csvRows = [];
+let convertedData = null;
+let mapping = {};
+let detectedPreset = null;
+
+// ============================================================
+// Auth
+// ============================================================
+const authGate = document.getElementById('authGate');
+const mainApp = document.getElementById('mainApp');
+const authInput = document.getElementById('authInput');
+const authBtn = document.getElementById('authBtn');
+const authError = document.getElementById('authError');
+
+// Check session
+if (sessionStorage.getItem('rc_authed') === 'yes') {
+  authGate.style.display = 'none';
+  mainApp.style.display = 'block';
+}
+
+function tryAuth() {
+  if (authInput.value === ACCESS_PHRASE) {
+    sessionStorage.setItem('rc_authed', 'yes');
+    authGate.style.display = 'none';
+    mainApp.style.display = 'block';
+  } else {
+    authError.style.display = 'block';
+    authInput.value = '';
+    authInput.focus();
+  }
+}
+authBtn.addEventListener('click', tryAuth);
+authInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryAuth(); });
+
+// ============================================================
+// CSV Parsing
+// ============================================================
+function detectEncoding(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return 'utf-8';
+  let sjisScore = 0;
+  for (let i = 0; i < Math.min(bytes.length, 2000); i++) {
+    const b = bytes[i];
+    if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
+      if (i + 1 < bytes.length) {
+        const b2 = bytes[i + 1];
+        if ((b2 >= 0x40 && b2 <= 0x7E) || (b2 >= 0x80 && b2 <= 0xFC)) { sjisScore++; i++; }
+      }
+    }
+  }
+  return sjisScore > 3 ? 'shift_jis' : 'utf-8';
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let fields = [];
+  let current = '';
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuote) {
+      if (ch === '"') {
+        if (i + 1 < text.length && text[i + 1] === '"') { current += '"'; i++; }
+        else { inQuote = false; }
+      } else { current += ch; }
+    } else {
+      if (ch === '"') { inQuote = true; }
+      else if (ch === ',') { fields.push(current); current = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && i + 1 < text.length && text[i + 1] === '\n') i++;
+        if (current !== '' || fields.length > 0) { fields.push(current); rows.push(fields); fields = []; current = ''; }
+      } else { current += ch; }
+    }
+  }
+  if (current !== '' || fields.length > 0) { fields.push(current); rows.push(fields); }
+  return rows;
+}
+
+function readFile(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const buffer = e.target.result;
+      const encoding = detectEncoding(buffer);
+      const decoder = new TextDecoder(encoding);
+      const text = decoder.decode(buffer).replace(/^\uFEFF/, '');
+      resolve({ rows: parseCSV(text), encoding });
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ============================================================
+// Auto Mapping
+// ============================================================
+function detectPreset(headers) {
+  const joined = headers.join(',').toLowerCase();
+  // Score each preset
+  let best = null, bestScore = 0;
+  for (const [key, preset] of Object.entries(MEDIA_PRESETS)) {
+    let score = 0;
+    for (const hints of Object.values(preset.hints)) {
+      for (const hint of hints) {
+        if (joined.includes(hint.toLowerCase())) score++;
+      }
+    }
+    if (score > bestScore) { bestScore = score; best = key; }
+  }
+  return bestScore >= 3 ? best : null;
+}
+
+function autoMap(headers, presetKey) {
+  const result = {};
+  const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+  const preset = MEDIA_PRESETS[presetKey];
+  const hints = preset ? preset.hints : GENERIC_HINTS;
+
+  for (const col of RC_COLUMNS) {
+    if (col.type !== 'map') continue;
+    const colHints = hints[col.key] || GENERIC_HINTS[col.key] || [];
+    let bestIdx = -1, bestScore = 0;
+
+    for (let i = 0; i < lowerHeaders.length; i++) {
+      const h = lowerHeaders[i];
+      for (const kw of colHints) {
+        const kwL = kw.toLowerCase();
+        if (h === kwL && 3 > bestScore) { bestScore = 3; bestIdx = i; }
+        else if ((h.includes(kwL) || kwL.includes(h)) && h.length > 0 && 2 > bestScore) { bestScore = 2; bestIdx = i; }
+      }
+    }
+    result[col.key] = bestIdx;
+  }
+
+  // Detect full-name column
+  const fnCols = preset ? preset.fullNameColumns : ['氏名', '名前', '候補者名'];
+  if (result.first_name === -1 && result.last_name >= 0) {
+    const h = lowerHeaders[result.last_name];
+    if (fnCols.some(fn => h.includes(fn.toLowerCase()))) {
+      result._fullNameCol = result.last_name;
+    }
+  }
+  // Also check: if last_name not mapped, try full name columns
+  if (result.last_name === -1) {
+    for (let i = 0; i < lowerHeaders.length; i++) {
+      if (fnCols.some(fn => lowerHeaders[i].includes(fn.toLowerCase()))) {
+        result.last_name = i;
+        result._fullNameCol = i;
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
+// ============================================================
+// UI: File handling
+// ============================================================
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+async function handleFile(file) {
+  const { rows, encoding } = await readFile(file);
+  if (rows.length < 2) { alert('CSVに十分なデータがありません'); return; }
+  csvHeaders = rows[0];
+  csvRows = rows.slice(1).filter(r => r.some(c => c.trim()));
+
+  document.getElementById('fileInfo').innerHTML =
+    `✅ <strong>${file.name}</strong>（${encoding.toUpperCase()}）: ${csvHeaders.length}列 × ${csvRows.length}行`;
+  document.getElementById('fileInfo').classList.remove('hidden');
+
+  // Detect or use selected preset
+  const selectedPreset = document.getElementById('presetSelect').value;
+  let usePreset = selectedPreset;
+  if (selectedPreset === 'auto') {
+    const detected = detectPreset(csvHeaders);
+    usePreset = detected || 'manual';
+    if (detected) {
+      detectedPreset = detected;
+      document.getElementById('presetSelect').value = detected;
+    }
+  }
+
+  mapping = autoMap(csvHeaders, usePreset === 'manual' ? null : usePreset);
+  renderMapping(usePreset);
+  document.getElementById('step3').classList.remove('hidden');
+  document.getElementById('step4').classList.remove('hidden');
+}
+
+// ============================================================
+// UI: Mapping table
+// ============================================================
+function renderMapping(presetKey) {
+  const tbody = document.getElementById('mappingBody');
+  const mapCount = RC_COLUMNS.filter(c => c.type === 'map' && mapping[c.key] >= 0).length;
+  const total = RC_COLUMNS.filter(c => c.type === 'map').length;
+  const presetName = MEDIA_PRESETS[presetKey]?.name || '汎用';
+
+  document.getElementById('autoMapInfo').innerHTML =
+    `プリセット: <strong style="color:var(--accent)">${presetName}</strong> ｜ 自動マッピング: <strong style="color:var(--green)">${mapCount}/${total}</strong>。未設定項目はプルダウンで手動選択してください。`;
+
+  tbody.innerHTML = '';
+  for (const col of RC_COLUMNS) {
+    const tr = document.createElement('tr');
+    const tdLabel = document.createElement('td');
+    tdLabel.textContent = col.label;
+    tr.appendChild(tdLabel);
+
+    const tdType = document.createElement('td');
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    if (col.required) { tag.className += ' tag-required'; tag.textContent = '必須'; }
+    else if (col.type === 'auto' || col.type === 'fixed') { tag.className += ' tag-auto'; tag.textContent = '自動'; }
+    else { tag.className += ' tag-optional'; tag.textContent = '任意'; }
+    tdType.appendChild(tag);
+    tr.appendChild(tdType);
+
+    const tdStatus = document.createElement('td');
+    if (col.type === 'auto' || col.type === 'fixed') {
+      const st = document.createElement('span');
+      st.className = 'tag tag-auto'; st.textContent = col.desc || '自動';
+      tdStatus.appendChild(st);
+    } else {
+      const st = document.createElement('span');
+      st.className = 'tag';
+      st.className += mapping[col.key] >= 0 ? ' tag-mapped' : ' tag-unmapped';
+      st.textContent = mapping[col.key] >= 0 ? 'マッピング済' : '未設定';
+      st.id = `status-${col.key}`;
+      tdStatus.appendChild(st);
+    }
+    tr.appendChild(tdStatus);
+
+    const tdMap = document.createElement('td');
+    if (col.type === 'map') {
+      const sel = document.createElement('select');
+      sel.id = `map-${col.key}`;
+      const optNone = document.createElement('option');
+      optNone.value = '-1'; optNone.textContent = '— 未設定 —';
+      sel.appendChild(optNone);
+      for (let i = 0; i < csvHeaders.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = i; opt.textContent = `[${i+1}] ${csvHeaders[i]}`;
+        if (mapping[col.key] === i) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      sel.addEventListener('change', () => {
+        mapping[col.key] = parseInt(sel.value);
+        const st = document.getElementById(`status-${col.key}`);
+        st.className = 'tag' + (mapping[col.key] >= 0 ? ' tag-mapped' : ' tag-unmapped');
+        st.textContent = mapping[col.key] >= 0 ? 'マッピング済' : '未設定';
+      });
+      tdMap.appendChild(sel);
+    } else {
+      tdMap.style.color = 'var(--text-muted)'; tdMap.textContent = col.desc || '';
+    }
+    tr.appendChild(tdMap);
+    tbody.appendChild(tr);
+  }
+}
+
+// ============================================================
+// Conversion
+// ============================================================
+document.getElementById('btnConvert').addEventListener('click', convert);
+
+function generateId() {
+  const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = 'cd';
+  for (let i = 0; i < 4; i++) id += c[Math.floor(Math.random() * c.length)];
+  return id;
+}
+function formatDate(val) {
+  if (!val) return '';
+  val = val.trim();
+  if (/^\d{4}\/\d{1,2}\/\d{1,2}/.test(val)) return val;
+  if (/^\d{4}-\d{1,2}-\d{1,2}/.test(val)) return val.replace(/-/g, '/');
+  return val;
+}
+function splitName(fullName) {
+  if (!fullName) return ['', ''];
+  const parts = fullName.trim().split(/[\s\u3000]+/);
+  return parts.length >= 2 ? [parts[0], parts.slice(1).join('')] : [parts[0], ''];
+}
+function sanitize(v) {
+  if (!v) return '';
+  return /^[=+\-@\t\r]/.test(v) ? "'" + v : v;
+}
+
+function convert() {
+  const customerId = document.getElementById('customerId').value.trim();
+  const siteId = document.getElementById('siteId').value.trim();
+  const defaultJobId = document.getElementById('defaultJobId').value.trim();
+  const defaultStatus = document.getElementById('defaultStatus').value;
+  const presetKey = document.getElementById('presetSelect').value;
+  const sourceName = MEDIA_PRESETS[presetKey]?.name ||
+    (presetKey === 'auto' && detectedPreset ? MEDIA_PRESETS[detectedPreset].name : '外部媒体');
+
+  if (!customerId || !siteId) { alert('顧客IDとサイトIDは必須です'); return; }
+
+  const errors = [];
+  const converted = [];
+
+  for (let i = 0; i < csvRows.length; i++) {
+    const row = csvRows[i];
+    const getVal = (key) => {
+      const idx = mapping[key];
+      if (idx === undefined || idx < 0 || idx >= row.length) return '';
+      return (row[idx] || '').trim();
+    };
+
+    let lastName = getVal('last_name');
+    let firstName = getVal('first_name');
+
+    // Full name splitting
+    if (mapping._fullNameCol !== undefined && !firstName && lastName) {
+      [lastName, firstName] = splitName(lastName);
+    } else if (lastName && !firstName && /[\s\u3000]/.test(lastName)) {
+      [lastName, firstName] = splitName(lastName);
+    }
+
+    const phone = getVal('phone');
+    const email = getVal('email');
+
+    // Validation
+    const rowErrs = [];
+    if (!lastName) rowErrs.push('氏が空');
+    if (!phone && !email) rowErrs.push('電話/メール両方空');
+    if (rowErrs.length) errors.push(`行${i+2}: ${rowErrs.join(', ')}`);
+
+    converted.push({
+      '応募者ID': generateId(),
+      '【必須】顧客ID': customerId,
+      '【必須】サイトID': siteId,
+      '求人ID': sanitize(getVal('job_id') || defaultJobId),
+      '【必須】ステータス': getVal('status') || defaultStatus,
+      'メモ': sanitize(getVal('memo')),
+      '応募日時': formatDate(getVal('applied_at')),
+      '【必須】氏': sanitize(lastName),
+      '【必須】名': sanitize(firstName),
+      '【必須】生年月日': formatDate(getVal('birthday')),
+      '【必須】電話番号': sanitize(phone),
+      '【必須】メールアドレス': sanitize(email),
+      '保有資格': sanitize(getVal('qualifications')),
+      '任意応募項目 - 備考': sanitize(getVal('opt_memo')),
+      '任意応募項目 - フリガナ - 氏': sanitize(getVal('kana_last')),
+      '任意応募項目 - フリガナ - 名': sanitize(getVal('kana_first')),
+      '任意応募項目 - 性別（男女）': sanitize(getVal('gender')),
+      '任意応募項目 - 住所': sanitize(getVal('address')),
+      '任意応募項目 - 学歴': sanitize(getVal('education')),
+      '連携データ - 備考': `${sourceName}からインポート`,
+    });
+  }
+
+  convertedData = converted;
+
+  // Preview
+  const headers = Object.keys(converted[0] || {});
+  let html = '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+  converted.slice(0, 30).forEach(row => {
+    html += '<tr>' + headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('previewTable').innerHTML = html;
+  document.getElementById('previewArea').classList.remove('hidden');
+
+  // Result
+  const resultArea = document.getElementById('resultArea');
+  let rHtml = '';
+  if (errors.length) {
+    rHtml += `<div class="error-box"><strong>⚠️ ${errors.length}件の警告:</strong><br>` +
+      errors.slice(0, 10).join('<br>') + (errors.length > 10 ? `<br>...他${errors.length-10}件` : '') + '</div>';
+  }
+  rHtml += `<div class="result-box"><h3>✅ 変換完了</h3><div class="result-stats">
+    <div class="result-stat">変換: <strong>${converted.length}件</strong></div>
+    <div class="result-stat">警告: <strong>${errors.length}件</strong></div>
+    <div class="result-stat">媒体: <strong>${sourceName}</strong></div>
+  </div></div>`;
+  resultArea.innerHTML = rHtml;
+  resultArea.classList.remove('hidden');
+
+  document.getElementById('btnDownloadZip').classList.remove('hidden');
+  document.getElementById('btnDownloadCsv').classList.remove('hidden');
+  document.getElementById('btnReset').classList.remove('hidden');
+}
+
+// ============================================================
+// Export
+// ============================================================
+function toCSVString(data) {
+  if (!data?.length) return '';
+  const headers = Object.keys(data[0]);
+  const esc = (v) => {
+    v = String(v ?? '');
+    return (v.includes(',') || v.includes('"') || v.includes('\n')) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  };
+  return [headers.map(esc).join(','), ...data.map(row => headers.map(h => esc(row[h])).join(','))].join('\r\n');
+}
+
+function csvToBlob(str) {
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const bytes = new TextEncoder().encode(str);
+  return new Blob([bom, bytes], { type: 'text/csv;charset=utf-8' });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+document.getElementById('btnDownloadCsv').addEventListener('click', () => {
+  if (!convertedData) return;
+  downloadBlob(csvToBlob(toCSVString(convertedData)), 'oubosya.csv');
+});
+
+document.getElementById('btnDownloadZip').addEventListener('click', async () => {
+  if (!convertedData) return;
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const bytes = new TextEncoder().encode(toCSVString(convertedData));
+  const combined = new Uint8Array(bom.length + bytes.length);
+  combined.set(bom, 0); combined.set(bytes, bom.length);
+  const zip = new JSZip();
+  zip.file('oubosya.csv', combined);
+  const content = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(content, 'oubosya_import.zip');
+});
+
+// Reset
+document.getElementById('btnReset').addEventListener('click', () => {
+  csvHeaders = []; csvRows = []; convertedData = null; mapping = {};
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileInfo').classList.add('hidden');
+  document.getElementById('step3').classList.add('hidden');
+  document.getElementById('step4').classList.add('hidden');
+  document.getElementById('previewArea').classList.add('hidden');
+  document.getElementById('resultArea').classList.add('hidden');
+  document.getElementById('btnDownloadZip').classList.add('hidden');
+  document.getElementById('btnDownloadCsv').classList.add('hidden');
+  document.getElementById('btnReset').classList.add('hidden');
+});
+</script>
+</body>
+</html>
