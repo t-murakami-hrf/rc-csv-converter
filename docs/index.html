@@ -379,7 +379,7 @@
 // ============================================================
 // CONFIG — 変更する場合はここだけ触る
 // ============================================================
-const ACCESS_PHRASE = 'rcimport2026';
+const ACCESS_PHRASE_HASH = 'd94a0e5586d367f54bb13d9b0b0151cf74ef2900672c3c30a21cbe498f15da68';
 const APP_VERSION = 'v1.0.0';
 
 // ============================================================
@@ -520,8 +520,17 @@ if (sessionStorage.getItem('rc_authed') === 'yes') {
   mainApp.style.display = 'block';
 }
 
-function tryAuth() {
-  if (authInput.value === ACCESS_PHRASE) {
+async function hashString(str) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function tryAuth() {
+  const inputHash = await hashString(authInput.value);
+  if (inputHash === ACCESS_PHRASE_HASH) {
     sessionStorage.setItem('rc_authed', 'yes');
     authGate.style.display = 'none';
     mainApp.style.display = 'block';
