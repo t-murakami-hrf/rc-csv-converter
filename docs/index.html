@@ -539,18 +539,43 @@ authInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryAuth();
 // ============================================================
 function detectEncoding(buffer) {
   const bytes = new Uint8Array(buffer);
+  // BOM check
   if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return 'utf-8';
+
+  // Score both encodings
   let sjisScore = 0;
-  for (let i = 0; i < Math.min(bytes.length, 2000); i++) {
+  let utf8Score = 0;
+  let utf8Fail = 0;
+  const len = Math.min(bytes.length, 4000);
+
+  for (let i = 0; i < len; i++) {
     const b = bytes[i];
+
+    // Check valid UTF-8 multibyte sequences
+    if (b >= 0xC2 && b <= 0xDF && i + 1 < len) {
+      if (bytes[i+1] >= 0x80 && bytes[i+1] <= 0xBF) { utf8Score++; i += 1; continue; }
+      else { utf8Fail++; }
+    }
+    if (b >= 0xE0 && b <= 0xEF && i + 2 < len) {
+      if (bytes[i+1] >= 0x80 && bytes[i+1] <= 0xBF && bytes[i+2] >= 0x80 && bytes[i+2] <= 0xBF) { utf8Score += 2; i += 2; continue; }
+      else { utf8Fail++; }
+    }
+
+    // Check Shift_JIS double-byte
     if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
-      if (i + 1 < bytes.length) {
+      if (i + 1 < len) {
         const b2 = bytes[i + 1];
         if ((b2 >= 0x40 && b2 <= 0x7E) || (b2 >= 0x80 && b2 <= 0xFC)) { sjisScore++; i++; }
       }
     }
   }
-  return sjisScore > 3 ? 'shift_jis' : 'utf-8';
+
+  // UTF-8 with valid multibyte and no failures → UTF-8
+  if (utf8Score > 0 && utf8Fail === 0) return 'utf-8';
+  // Clear Shift_JIS pattern
+  if (sjisScore > 3 && sjisScore > utf8Score) return 'shift_jis';
+  // Default
+  return 'utf-8';
 }
 
 function parseCSV(text) {
@@ -834,10 +859,13 @@ function convert() {
     if (rowErrs.length) errors.push(`行${i+2}: ${rowErrs.join(', ')}`);
 
     converted.push({
-      '応募者ID': generateId(),
+      '応募者ID': '',
       '【必須】顧客ID': customerId,
       '【必須】サイトID': siteId,
-      '求人ID': sanitize(getVal('job_id') || defaultJobId),
+      '求人ID': (() => {
+        const raw = getVal('job_id') || defaultJobId;
+        return /^kj\d+$/.test(raw) ? raw : '';
+      })(),
       '【必須】ステータス': getVal('status') || defaultStatus,
       'メモ': sanitize(getVal('memo')),
       '応募日時': formatDate(getVal('applied_at')),
@@ -847,7 +875,15 @@ function convert() {
       '【必須】電話番号': sanitize(phone),
       '【必須】メールアドレス': sanitize(email),
       '保有資格': sanitize(getVal('qualifications')),
-      '任意応募項目 - 備考': sanitize(getVal('opt_memo')),
+      '任意応募項目 - 備考': (() => {
+        const parts = [];
+        const optMemo = getVal('opt_memo');
+        if (optMemo) parts.push(optMemo);
+        // 求人IDカラムの値がkjパターンでなければ備考に回す
+        const rawJobId = getVal('job_id');
+        if (rawJobId && !/^kj\d+$/.test(rawJobId)) parts.push(`応募求人: ${rawJobId}`);
+        return sanitize(parts.join(' / '));
+      })(),
       '任意応募項目 - フリガナ - 氏': sanitize(getVal('kana_last')),
       '任意応募項目 - フリガナ - 名': sanitize(getVal('kana_first')),
       '任意応募項目 - 性別（男女）': sanitize(getVal('gender')),
