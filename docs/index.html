@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RC応募者CSV変換ツール</title>
+<title>採用-engine 応募者CSV変換ツール</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
 
@@ -241,7 +241,7 @@
 <div id="authGate">
   <div class="auth-box">
     <div style="font-size:2.5rem; margin-bottom:16px;">🔐</div>
-    <h2>RC CSV変換ツール</h2>
+    <h2>採用-engine CSV変換ツール</h2>
     <p>アクセスフレーズを入力してください</p>
     <div class="auth-error" id="authError">フレーズが正しくありません</div>
     <input type="password" id="authInput" placeholder="アクセスフレーズ" autofocus>
@@ -253,7 +253,7 @@
 <div id="mainApp">
   <div class="container">
     <div class="top-bar">
-      <h1>📋 RC応募者CSV変換ツール</h1>
+      <h1>📋 採用-engine 応募者CSV変換ツール</h1>
       <span class="version-tag">v1.0.0</span>
     </div>
 
@@ -261,7 +261,7 @@
     <div class="step" id="step1">
       <div class="step-header">
         <div class="step-num">1</div>
-        <div class="step-title">RC基本情報 ＆ 媒体選択</div>
+        <div class="step-title">採用-engine 基本情報 ＆ 媒体選択</div>
       </div>
       <div class="info-box">
         顧客ID・サイトIDは全行に共通で入ります。媒体プリセットを選ぶとカラムマッピングが自動設定されます。
@@ -284,9 +284,16 @@
         <div class="field">
           <label>デフォルトステータス</label>
           <select id="defaultStatus">
+            <option value="新規">新規</option>
             <option value="初回対応">初回対応</option>
-            <option value="未対応">未対応</option>
-            <option value="対応中">対応中</option>
+            <option value="書類通過">書類通過</option>
+            <option value="面接設定済">面接設定済</option>
+            <option value="面接済">面接済</option>
+            <option value="内定">内定</option>
+            <option value="採用/内定承諾">採用/内定承諾</option>
+            <option value="不採用">不採用</option>
+            <option value="選考辞退/内定辞退">選考辞退/内定辞退</option>
+            <option value="入社">入社</option>
           </select>
         </div>
         <div class="field">
@@ -328,7 +335,7 @@
       <div class="info-box" id="autoMapInfo"></div>
       <table class="mapping-table" id="mappingTable">
         <thead><tr>
-          <th style="width:35%">RCカラム</th>
+          <th style="width:35%">採用-engineカラム</th>
           <th style="width:10%">種別</th>
           <th style="width:10%">状態</th>
           <th style="width:45%">媒体CSVカラム</th>
@@ -360,7 +367,7 @@
     </div>
 
     <div class="footer">
-      RC応募者CSV変換ツール v1.0.0 — ブラウザ内完結（データはサーバーに送信されません）
+      採用-engine 応募者CSV変換ツール v1.0.0 — ブラウザ内完結（データはサーバーに送信されません）
     </div>
   </div>
 </div>
